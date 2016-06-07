@@ -91,6 +91,19 @@ def make_admin_context(show_deleted=False, all_tenants=False):
     return context
 
 
+def make_bay_context(bay, show_deleted=False):
+    """Create a user context based on a bay's stored Keystone trust.
+
+    :param bay: the bay supplying the Keystone trust to use
+    :param show_deleted: if True, will show deleted items when query db
+    """
+    context = RequestContext(user_id=bay.trustee_username,
+                             password=bay.trustee_password,
+                             trust_id=bay.trust_id,
+                             show_deleted=show_deleted)
+    return context
+
+
 _CTX_STORE = threading.local()
 _CTX_KEY = 'current_ctx'
 

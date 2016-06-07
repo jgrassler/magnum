@@ -466,8 +466,15 @@ Install and configure components
 
       # su -s /bin/sh -c "/var/lib/magnum/env/bin/magnum-db-manage upgrade" magnum
 
-9. Update heat policy to allow magnum list stacks. Edit your heat policy file,
-   usually ``/etc/heat/policy.json``:
+9. [optional] Update heat policy to allow magnum list stacks. This is only
+   required if the configuration setting `periodic_global_stack_list` is True
+   (False by default). Do not adjust Heat's policy.json unless the periodic
+   task causes an unreasonable load on Keystone, since this comes with a
+   security problem: any user with the `admin` role in any project will be able
+   to do a global stack-list across all tenants.
+
+   If you want to do this nonetheless, edit your heat policy file, usually
+   ``/etc/heat/policy.json``:
 
    .. code-block:: ini
 

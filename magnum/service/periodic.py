@@ -15,6 +15,8 @@
 
 import functools
 
+from heatclient import exc as heat_exc
+from oslo_config import cfg
 from oslo_log import log
 from oslo_service import periodic_task
 import six
@@ -31,6 +33,7 @@ from magnum import objects
 from magnum.objects.fields import BayStatus as bay_status
 
 
+CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
 
@@ -80,8 +83,20 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
             sid_to_bay_mapping = {bay.stack_id: bay for bay in bays}
             bay_stack_ids = sid_to_bay_mapping.keys()
 
-            stacks = osc.heat().stacks.list(global_tenant=True,
-                                            filters={'id': bay_stack_ids})
+            stacks = []
+            if CONF.periodic_global_stack_list:
+                stacks = osc.heat().stacks.list(global_tenant=True,
+                                                filters={'id': bay_stack_ids})
+            else:
+                for bay in bays:
+                    try:
+                        # Create client with bay's trustee user context
+                        bosc = clients.OpenStackClients(
+                            context.make_bay_context(bay))
+                        stack = bosc.heat().stacks.get(bay.stack_id)
+                        stacks.append(stack)
+                    except heat_exc.HTTPNotFound:
+                        pass
             sid_to_stack_mapping = {s.id: s for s in stacks}
 
             # intersection of bays magnum has and heat has

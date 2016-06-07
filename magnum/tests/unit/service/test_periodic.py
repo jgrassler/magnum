@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from heatclient import exc as heat_exc
 import mock
 
 from magnum.common import context
@@ -37,14 +38,25 @@ class PeriodicTestCase(base.TestCase):
 
         ctx = context.make_admin_context()
 
-        bay1 = utils.get_test_bay(id=1, stack_id='11',
-                                  status=bay_status.CREATE_IN_PROGRESS)
-        bay2 = utils.get_test_bay(id=2, stack_id='22',
-                                  status=bay_status.DELETE_IN_PROGRESS)
-        bay3 = utils.get_test_bay(id=3, stack_id='33',
-                                  status=bay_status.UPDATE_IN_PROGRESS)
-        bay4 = utils.get_test_bay(id=4, stack_id='44',
-                                  status=bay_status.CREATE_COMPLETE)
+        # Can be identical for all bays.
+        trust_attrs = {
+            'trustee_username': '5d12f6fd-a196-4bf0-ae4c-1f639a523a52',
+            'trustee_password': 'ain7einaebooVaig6d',
+            'trust_id': '39d920ca-67c6-4047-b57a-01e9e16bb96f',
+            }
+
+        trust_attrs.update({'id': 1, 'stack_id': '11',
+                           'status': bay_status.CREATE_IN_PROGRESS})
+        bay1 = utils.get_test_bay(**trust_attrs)
+        trust_attrs.update({'id': 2, 'stack_id': '22',
+                           'status': bay_status.DELETE_IN_PROGRESS})
+        bay2 = utils.get_test_bay(**trust_attrs)
+        trust_attrs.update({'id': 3, 'stack_id': '33',
+                           'status': bay_status.UPDATE_IN_PROGRESS})
+        bay3 = utils.get_test_bay(**trust_attrs)
+        trust_attrs.update({'id': 4, 'stack_id': '44',
+                           'status': bay_status.CREATE_COMPLETE})
+        bay4 = utils.get_test_bay(**trust_attrs)
 
         self.bay1 = objects.Bay(ctx, **bay1)
         self.bay2 = objects.Bay(ctx, **bay2)
@@ -63,6 +75,14 @@ class PeriodicTestCase(base.TestCase):
         stack3 = fake_stack(id='33', stack_status=bay_status.UPDATE_COMPLETE,
                             stack_status_reason='fake_reason_33')
         mock_heat_client.stacks.list.return_value = [stack1, stack3]
+        get_stacks = {'11': stack1, '33': stack3}
+
+        def stack_get_sideefect(arg):
+            if arg == '22':
+                raise heat_exc.HTTPNotFound
+            return get_stacks[arg]
+
+        mock_heat_client.stacks.get.side_effect = stack_get_sideefect
         mock_osc = mock_oscc.return_value
         mock_osc.heat.return_value = mock_heat_client
         mock_bay_list.return_value = [self.bay1, self.bay2, self.bay3]
@@ -89,6 +109,14 @@ class PeriodicTestCase(base.TestCase):
                             stack_status=bay_status.DELETE_IN_PROGRESS)
         stack3 = fake_stack(id='33',
                             stack_status=bay_status.UPDATE_IN_PROGRESS)
+        get_stacks = {'11': stack1, '22': stack2, '33': stack3}
+
+        def stack_get_sideefect(arg):
+            if arg == '22':
+                raise heat_exc.HTTPNotFound
+            return get_stacks[arg]
+
+        mock_heat_client.stacks.get.side_effect = stack_get_sideefect
         mock_heat_client.stacks.list.return_value = [stack1, stack2, stack3]
         mock_osc = mock_oscc.return_value
         mock_osc.heat.return_value = mock_heat_client
