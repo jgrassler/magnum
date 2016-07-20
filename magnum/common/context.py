@@ -24,7 +24,7 @@ class RequestContext(context.RequestContext):
                  project_name=None, project_id=None, roles=None,
                  is_admin=False, read_only=False, show_deleted=False,
                  request_id=None, trust_id=None, auth_token_info=None,
-                 all_tenants=False, **kwargs):
+                 all_tenants=False, password=None, **kwargs):
         """Stores several additional request parameters:
 
         :param domain_id: The ID of the domain.
@@ -50,6 +50,7 @@ class RequestContext(context.RequestContext):
         self.auth_token_info = auth_token_info
         self.trust_id = trust_id
         self.all_tenants = all_tenants
+        self.password = password
 
     def to_dict(self):
         value = super(RequestContext, self).to_dict()
@@ -66,6 +67,7 @@ class RequestContext(context.RequestContext):
                       'roles': self.roles,
                       'show_deleted': self.show_deleted,
                       'request_id': self.request_id,
+                      'password': self.password,
                       'trust_id': self.trust_id,
                       'auth_token_info': self.auth_token_info,
                       'all_tenants': self.all_tenants})
@@ -101,6 +103,7 @@ def make_bay_context(bay, show_deleted=False):
     """
     LOG.debug("Creating bay context with user_id = %s, project=%s, password=%s, trust_id=%s, show_deleted=%s" % 
       (bay.trustee_username,
+      bay.project_id,
       bay.trustee_password,
       bay.trust_id,
       show_deleted)

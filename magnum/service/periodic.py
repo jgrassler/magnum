@@ -20,6 +20,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_service import periodic_task
 import six
+import json
 
 from magnum.common import clients
 from magnum.common import context
@@ -89,20 +90,20 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
                 stacks = osc.heat().stacks.list(global_tenant=True,
                                                 filters={'id': bay_stack_ids})
             else:
+                LOG.debug("Decorator global context: %s" % json.dumps(context.ctx().__dict__, indent=4))
                 for bay in bays:
+                    bay_context = context.make_bay_context(bay)
+                    context.set_ctx(bay_context)
+                    bosc = clients.OpenStackClients(bay_context)
+                    LOG.debug("Current global context: \n%s" % json.dumps(context.ctx().__dict__, indent=4))
+                    # override context set by decorator
                     for retry in range(1, 6):
                       try:
-                          LOG.debug("Attempt %d to retrieve stack %s (bay %s) with context:" % (retry, bay.stack_id, bay.uuid))
-                          LOG.debug(context.make_bay_context(bay).__dict__)
+                          LOG.debug("Attempt %d to retrieve stack %s (bay %s) with context\n%s:" % (retry, bay.stack_id, bay.uuid, json.dumps(bay_context.__dict__, indent=4)))
                           # Create client with bay's trustee user context
-                          bosc = clients.OpenStackClients(
-                              context.make_bay_context(bay))
-                          import json
                           auth_token = bosc.auth_token
                           LOG.debug("Got issued auth_token %s" % auth_token)
                           out = bosc.context.__dict__
-                          out['mylabel'] = 'Context for bay %s (%s) trustee consumption' % (bay.name, bay.uuid)
-                          LOG.debug(json.dumps(out, indent=4))
                           stack = bosc.heat().stacks.get(bay.stack_id)
                           stacks.append(stack)
                           break
@@ -111,6 +112,9 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
                           LOG.debug(context.make_bay_context(bay).__dict__)
                           LOG.debug('Attempt %d: failed. Retrying %d more times.' % (retry, 5 - retry))
                           continue
+                    # Restore context set by decorator
+                    context.set_ctx(ctx)
+
             sid_to_stack_mapping = {s.id: s for s in stacks}
 
             # intersection of bays magnum has and heat has
