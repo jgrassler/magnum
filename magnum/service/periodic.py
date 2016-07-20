@@ -89,14 +89,23 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
                                                 filters={'id': bay_stack_ids})
             else:
                 for bay in bays:
-                    try:
-                        # Create client with bay's trustee user context
-                        bosc = clients.OpenStackClients(
-                            context.make_bay_context(bay))
-                        stack = bosc.heat().stacks.get(bay.stack_id)
-                        stacks.append(stack)
-                    except heat_exc.HTTPNotFound:
-                        pass
+                    for retry in range(1, 6):
+                      try:
+                          LOG.debug("Attempt %d to retrieve stack %s (bay %s) with context:" % (retry, bay.stack_id, bay.uuid))
+                          LOG.debug(context.make_bay_context(bay).__dict__)
+                          # Create client with bay's trustee user context
+                          bosc = clients.OpenStackClients(
+                              context.make_bay_context(bay))
+                          LOG.debug("Listing stacks:")
+                          LOG.debug(bosc.heat().stacks.list())
+                          stack = bosc.heat().stacks.get(bay.stack_id)
+                          stacks.append(stack)
+                          break
+                      except heat_exc.HTTPNotFound:
+                          LOG.debug('Attempt %d: unexpected 404 for stack %s (bay %s). Context follows.' % (retry, bay.stack_id, bay.uuid))
+                          LOG.debug(context.make_bay_context(bay).__dict__)
+                          LOG.debug('Attempt %d: failed. Retrying %d more times.' % (retry, 5 - retry))
+                          continue
             sid_to_stack_mapping = {s.id: s for s in stacks}
 
             # intersection of bays magnum has and heat has
