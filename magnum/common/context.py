@@ -13,6 +13,8 @@
 from eventlet.green import threading
 from oslo_context import context
 
+from oslo_log import log
+LOG = log.getLogger(__name__)
 
 class RequestContext(context.RequestContext):
     """Extends security contexts from the OpenStack common library."""
@@ -97,7 +99,14 @@ def make_bay_context(bay, show_deleted=False):
     :param bay: the bay supplying the Keystone trust to use
     :param show_deleted: if True, will show deleted items when query db
     """
+    LOG.debug("Creating bay context with user_id = %s, project=%s, password=%s, trust_id=%s, show_deleted=%s" % 
+      (bay.trustee_username,
+      bay.trustee_password,
+      bay.trust_id,
+      show_deleted)
+    )
     context = RequestContext(user_id=bay.trustee_username,
+                             project_id=bay.project_id,
                              password=bay.trustee_password,
                              trust_id=bay.trust_id,
                              show_deleted=show_deleted)

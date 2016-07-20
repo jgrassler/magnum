@@ -22,6 +22,11 @@ LOG = logging.getLogger(__name__)
 def create_trustee_and_trust(osc, bay):
     try:
         password = utils.generate_password(length=18)
+        LOG.debug("Creating trustee for bay %s (%s). Context information follows." % (bay.name, bay.uuid))
+        import json
+        out = osc.context.__dict__
+        out['mylabel'] = 'Context for bay %s (%s) trustee creation' % (bay.name, bay.uuid)
+        LOG.debug(json.dumps(out, indent=4))
         trustee = osc.keystone().create_trustee(
             bay.uuid,
             password,

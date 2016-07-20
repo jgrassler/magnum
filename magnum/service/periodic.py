@@ -72,9 +72,9 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
     def sync_bay_status(self, ctx):
         try:
             LOG.debug('Starting to sync up bay status')
-            osc = clients.OpenStackClients(ctx)
             status = [bay_status.CREATE_IN_PROGRESS,
                       bay_status.UPDATE_IN_PROGRESS,
+                      bay_status.CREATE_FAILED,
                       bay_status.DELETE_IN_PROGRESS]
             filters = {'status': status}
             bays = objects.Bay.list(ctx, filters=filters)
@@ -85,6 +85,7 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
 
             stacks = []
             if CONF.periodic_global_stack_list:
+                osc = clients.OpenStackClients(ctx)
                 stacks = osc.heat().stacks.list(global_tenant=True,
                                                 filters={'id': bay_stack_ids})
             else:
@@ -96,8 +97,12 @@ class MagnumPeriodicTasks(periodic_task.PeriodicTasks):
                           # Create client with bay's trustee user context
                           bosc = clients.OpenStackClients(
                               context.make_bay_context(bay))
-                          LOG.debug("Listing stacks:")
-                          LOG.debug(bosc.heat().stacks.list())
+                          import json
+                          auth_token = bosc.auth_token
+                          LOG.debug("Got issued auth_token %s" % auth_token)
+                          out = bosc.context.__dict__
+                          out['mylabel'] = 'Context for bay %s (%s) trustee consumption' % (bay.name, bay.uuid)
+                          LOG.debug(json.dumps(out, indent=4))
                           stack = bosc.heat().stacks.get(bay.stack_id)
                           stacks.append(stack)
                           break
